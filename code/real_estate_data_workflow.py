@@ -5,17 +5,16 @@ import pandas as pd
 class Data:
     def __init__(self, folder_path):
         self.folder_path = folder_path
+        self.data_path_df = None
+        self.data_df_list = None
         self.check_folder_path()
-        self.data_path_df = self.generate_data_path_df()
-        self.data_df_list = self.load_data()
-        self.df_all = self.concatenate_data_df()
-        print(self.df_all)
+        self.generate_data_path_df()
 
     def check_folder_path(self):
-        if self.folder_path[-1] == '\\':
-            self.folder_path[-1] = '/'
-        elif self.folder_path[-1] != '/':
+        if self.folder_path[-1] not in ['/', '\\']:
             self.folder_path += '/'
+        elif self.folder_path[-1] == '\\':
+            self.folder_path = self.folder_path.replace('\\', '/')
 
     def get_folder_contents(self, folder_path):
         # Check if the folder exists
@@ -50,7 +49,7 @@ class Data:
             data_path_dict["File"].append(lvr_land_data_file_list)
         # 將dict轉df
         data_path_df = pd.DataFrame(data_path_dict)
-        return data_path_df
+        self.data_path_df = data_path_df
 
     def get_name_from_path(self, path):
         name = os.path.basename(path)
@@ -60,7 +59,7 @@ class Data:
         df_name = folder_name + '_' + file_name[0] + '_' + file_name[-5]
         return df_name
 
-    def load_data(self):
+    def process_data(self):
         data_df_list = []
         folder_num = len(self.data_path_df)
         file_num = 5
@@ -87,16 +86,36 @@ class Data:
                     self.set_df_name, args=(folder_name, file_name, ), axis=1)
 
                 data_df_list.append(data_df)
-        return data_df_list
+        self.data_df_list = data_df_list
 
     def concatenate_data_df(self):
         df = pd.concat(self.data_df_list, axis=0)
         df = df.loc[:, df.columns.notna()]
         return df
 
+    def get_data_df_list(self):
+        pass
+
+    def get_df_all(self):
+        df_all = self.concatenate_data_df()
+        return df_all
+
+
+def filt_df(df):
+    pass
+
+
+def count_df(df):
+    pass
+
 
 if __name__ == '__main__':
-    a = Data('../real_estate_data/')
+    data = Data('../real_estate_data/')
+    data.process_data()
+    df_all = data.get_df_all()
+    print(df_all)
+
+
 # def load_data():
 # load_data()
 #isempty = os.stat('path\to\file\filename.ext').st_size == 0
