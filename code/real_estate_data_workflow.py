@@ -60,11 +60,11 @@ class Data:
     def process_data(self):
         data_df_list = []
         folder_num = len(self.data_path_df)
-        file_num = 5
         # 每個folder
         for i in range(folder_num):
             folder_name = self.get_name_from_path(self.data_path_df.Folder[i])
             # 每個file與file的dataframe
+            file_num = len(self.data_path_df.File[i])
             for j in range(file_num):
                 data_file_path = self.data_path_df.File[i][j]
                 file_name = self.get_name_from_path(data_file_path)
@@ -121,36 +121,59 @@ def filter_df(df):
         convert_total_floor_to_number)
     # 根據條件篩選
     filt = (df['main use'] == '住家用') & (df['building state'].str.contains(
-        '住宅大樓')) & (df['total floor number (number)'] >= 13)
+        '住宅大樓', na=False)) & (df['total floor number (number)'] >= 13)
     # 將剛剛新增的total floor number (number)刪除
-    filt_df = df.loc[filt].drop('total floor number (number)', axis=1)
+    df = df.drop('total floor number (number)', axis=1)
+    # filter
+    filt_df = df.loc[filt]
     return filt_df
 
 
 def count_df(df):
+    # 前處理，將資料從str轉int
+    df['total price NTD (number)'] = df['total price NTD'].apply(int)
+    df['the berth total price NTD (number)'] = df['the berth total price NTD'].apply(
+        int)
+
+    # 全部資料
+    # 計算總數與總價平均
     total_num = len(df)
-    # 計算總價平均
-    avg_price = df['total price NTD'].sum()
-    print(avg_price)
-    """# 篩選含有車位的資料
-    berth_df =
-    total_berth_num = 0
-    # 計算總價平均
-    avg_berth_price =
-    count_df['total number']
-    count_df"""
+    avg_price = df['total price NTD (number)'].mean()
+
+    # 車位資料
+    # 篩選包含車位的資料，只要包含車位就算
+    berth_filt = (df['transaction sign'].str.contains('車位', na=False))
+    berth_df = df.loc[berth_filt]
+    # 計算總數與總價平均
+    total_berth_num = len(berth_df)
+
+    # 篩選有紀錄價格的車位
+    priced_berth_filt = (df['the berth total price NTD (number)'] > 0)
+    priced_berth_df = df.loc[priced_berth_filt]
+    avg_berth_price = priced_berth_df['the berth total price NTD (number)'].mean(
+    )
+
+    df = df.drop(['the berth total price NTD (number)',
+                 'total price NTD (number)'], axis=1)
+
+    result = [{"total number": total_num, "the berth total number": total_berth_num,
+              "average price NTD": avg_price, "the berth average price NTD": avg_berth_price}]
+    count_df = pd.DataFrame(result)
+    return count_df
 
 
 def save_df_to_csv(df, folder_path, file_name):
     full_path = os.path.join(folder_path, file_name)
-    df.to_csv(full_path)
+    if not os.path.exists(folder_path):
+        os.mkdir(folder_path)
+    df.to_csv(full_path, encoding="utf_8_sig")
 
 
 if __name__ == '__main__':
     begin = time.time()
     data = Data('../real_estate_data/')
     end = time.time()
-    print("create Data class:", end - begin)
+    print("create Data object:", end - begin)
 
     begin = time.time()
     data.process_data()
@@ -166,10 +189,15 @@ if __name__ == '__main__':
     filt_df = filter_df(df_all)
     end = time.time()
     print("filter:", end - begin)
-    count_df(df_all)
-    # print(df_all['df_name'])
+    save_df_to_csv(filt_df, '../result/', 'filter.csv')
 
+    begin = time.time()
+    df_all = data.get_df_all()
+    end = time.time()
+    print("concat:", end - begin)
 
-# def load_data():
-# load_data()
-# isempty = os.stat('path\to\file\filename.ext').st_size == 0
+    begin = time.time()
+    count_df = count_df(df_all)
+    end = time.time()
+    print("count:", end - begin)
+    save_df_to_csv(count_df, '../result/', 'count.csv')
