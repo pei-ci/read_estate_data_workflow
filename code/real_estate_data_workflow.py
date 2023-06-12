@@ -1,5 +1,7 @@
 import os
 import pandas as pd
+import cn2an
+import time
 
 
 class Data:
@@ -7,22 +9,22 @@ class Data:
         self.folder_path = folder_path
         self.data_path_df = None
         self.data_df_list = None
-        self.check_folder_path()
+        self.check_folder_path_format()
         self.generate_data_path_df()
 
-    def check_folder_path(self):
+    def check_folder_path_format(self):
         if self.folder_path[-1] not in ['/', '\\']:
             self.folder_path += '/'
         elif self.folder_path[-1] == '\\':
             self.folder_path = self.folder_path.replace('\\', '/')
 
     def get_folder_contents(self, folder_path):
-        # Check if the folder exists
         folder_list = []
         file_list = []
+        # 查看folder path
         if os.path.exists(folder_path) and os.path.isdir(folder_path):
-            # List the files and subfolders in the folder
             contents = os.listdir(folder_path)
+            # 將folder中的資料夾與檔案分別加入list
             for item in contents:
                 item_path = os.path.join(folder_path, item)
                 if os.path.isdir(item_path):
@@ -55,16 +57,14 @@ class Data:
         name = os.path.basename(path)
         return name
 
-    def set_df_name(self, series, folder_name, file_name):
-        df_name = folder_name + '_' + file_name[0] + '_' + file_name[-5]
-        return df_name
-
     def process_data(self):
         data_df_list = []
         folder_num = len(self.data_path_df)
         file_num = 5
+        # 每個folder
         for i in range(folder_num):
             folder_name = self.get_name_from_path(self.data_path_df.Folder[i])
+            # 每個file與file的dataframe
             for j in range(file_num):
                 data_file_path = self.data_path_df.File[i][j]
                 file_name = self.get_name_from_path(data_file_path)
@@ -82,40 +82,94 @@ class Data:
                 data_df = data_df.rename(
                     columns=data_df.iloc[0]).drop(data_df.index[0])
                 # 增加df_name欄位，並補上內容
-                data_df['df_name'] = data_df.apply(
-                    self.set_df_name, args=(folder_name, file_name, ), axis=1)
-
+                data_df['df_name'] = folder_name + '_' + \
+                    file_name[0] + '_' + file_name[-5]
                 data_df_list.append(data_df)
         self.data_df_list = data_df_list
 
     def concatenate_data_df(self):
-        df = pd.concat(self.data_df_list, axis=0)
-        df = df.loc[:, df.columns.notna()]
-        return df
+        concat_df = pd.concat(self.data_df_list, axis=0).reset_index(drop=True)
+        concat_df = concat_df.loc[:, concat_df.columns.notna()]
+        return concat_df
 
     def get_data_df_list(self):
-        pass
+        return self.data_df_list
 
     def get_df_all(self):
         df_all = self.concatenate_data_df()
         return df_all
 
 
-def filt_df(df):
-    pass
+def convert_total_floor_to_number(floor):
+    if type(floor) == str:
+        floor = floor.replace('層', '')
+        try:
+            floor_num = int(cn2an.cn2an(floor, 'smart'))
+        except:
+            if floor == '地下':
+                floor_num = -1
+            else:
+                floor_num = 0
+    else:
+        floor_num = 0
+    return floor_num
+
+
+def filter_df(df):
+    # 新增一列total floor number (number)紀錄數字型態的floor number，將用於條件篩選
+    df['total floor number (number)'] = df['total floor number'].apply(
+        convert_total_floor_to_number)
+    # 根據條件篩選
+    filt = (df['main use'] == '住家用') & (df['building state'].str.contains(
+        '住宅大樓')) & (df['total floor number (number)'] >= 13)
+    # 將剛剛新增的total floor number (number)刪除
+    filt_df = df.loc[filt].drop('total floor number (number)', axis=1)
+    return filt_df
 
 
 def count_df(df):
-    pass
+    total_num = len(df)
+    # 計算總價平均
+    avg_price = df['total price NTD'].sum()
+    print(avg_price)
+    """# 篩選含有車位的資料
+    berth_df =
+    total_berth_num = 0
+    # 計算總價平均
+    avg_berth_price =
+    count_df['total number']
+    count_df"""
+
+
+def save_df_to_csv(df, folder_path, file_name):
+    full_path = os.path.join(folder_path, file_name)
+    df.to_csv(full_path)
 
 
 if __name__ == '__main__':
+    begin = time.time()
     data = Data('../real_estate_data/')
+    end = time.time()
+    print("create Data class:", end - begin)
+
+    begin = time.time()
     data.process_data()
+    end = time.time()
+    print("process:", end - begin)
+
+    begin = time.time()
     df_all = data.get_df_all()
-    print(df_all)
+    end = time.time()
+    print("concat:", end - begin)
+
+    begin = time.time()
+    filt_df = filter_df(df_all)
+    end = time.time()
+    print("filter:", end - begin)
+    count_df(df_all)
+    # print(df_all['df_name'])
 
 
 # def load_data():
 # load_data()
-#isempty = os.stat('path\to\file\filename.ext').st_size == 0
+# isempty = os.stat('path\to\file\filename.ext').st_size == 0
