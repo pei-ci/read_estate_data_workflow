@@ -1,7 +1,7 @@
 import os
 import pandas as pd
+import numpy as np
 import cn2an
-import time
 
 
 class Data:
@@ -90,6 +90,8 @@ class Data:
     def concatenate_data_df(self):
         concat_df = pd.concat(self.data_df_list, axis=0).reset_index(drop=True)
         concat_df = concat_df.loc[:, concat_df.columns.notna()]
+        concat_df = concat_df.loc[concat_df['land sector position building sector house number plate'].notna(
+        )]
         return concat_df
 
     def get_data_df_list(self):
@@ -131,9 +133,10 @@ def filter_df(df):
 
 def count_df(df):
     # 前處理，將資料從str轉int
-    df['total price NTD (number)'] = df['total price NTD'].apply(int)
+    df['total price NTD (number)'] = df['total price NTD'].apply(
+        lambda x: int(x) if pd.notnull(x) else np.nan)
     df['the berth total price NTD (number)'] = df['the berth total price NTD'].apply(
-        int)
+        lambda x: int(x) if pd.notnull(x) else np.nan)
 
     # 全部資料
     # 計算總數與總價平均
@@ -170,34 +173,19 @@ def save_df_to_csv(df, folder_path, file_name):
 
 
 if __name__ == '__main__':
-    begin = time.time()
     data = Data('../real_estate_data/')
-    end = time.time()
-    print("create Data object:", end - begin)
-
-    begin = time.time()
+    print('data processing...')
     data.process_data()
-    end = time.time()
-    print("process:", end - begin)
 
-    begin = time.time()
+    print('generating df_all...')
     df_all = data.get_df_all()
-    end = time.time()
-    print("concat:", end - begin)
 
-    begin = time.time()
+    print('filtering df_all...')
     filt_df = filter_df(df_all)
-    end = time.time()
-    print("filter:", end - begin)
     save_df_to_csv(filt_df, '../result/', 'filter.csv')
 
-    begin = time.time()
+    print('counting df_all...')
     df_all = data.get_df_all()
-    end = time.time()
-    print("concat:", end - begin)
-
-    begin = time.time()
     count_df = count_df(df_all)
-    end = time.time()
-    print("count:", end - begin)
     save_df_to_csv(count_df, '../result/', 'count.csv')
+    print('finish')
