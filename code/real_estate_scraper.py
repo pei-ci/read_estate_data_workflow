@@ -7,7 +7,7 @@ class RealEstateDataScraper:
     def __init__(self):
         self.url = 'https://plvr.land.moi.gov.tw/'
 
-    def real_estate_scraper(self, args):
+    def __real_estate_scraper(self, args):
         '''
         爬取指定年份、季度、類別、城市的資料
         '''
@@ -44,7 +44,7 @@ class RealEstateDataScraper:
 
         # 使用多進程進行平行化處理
         with ThreadPoolExecutor() as executor:
-            executor.map(self.real_estate_scraper, args)
+            executor.map(self.__real_estate_scraper, args)
 
 
 def create_folder_if_not_exists(folder_path):

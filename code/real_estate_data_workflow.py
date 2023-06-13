@@ -9,10 +9,10 @@ class Data:
         self.folder_path = folder_path
         self.data_path_df = None
         self.data_df_list = None
-        self.check_folder_path_format()
-        self.generate_data_path_df()
+        self.__check_folder_path_format()
+        self.__generate_data_path_df()
 
-    def check_folder_path_format(self):
+    def __check_folder_path_format(self):
         '''
         檢查folder_path的格式，不符則進行轉換
         '''
@@ -21,7 +21,7 @@ class Data:
         elif self.folder_path[-1] == '\\':
             self.folder_path = self.folder_path.replace('\\', '/')
 
-    def generate_data_path_df(self):
+    def __generate_data_path_df(self):
         data_path_dict = {"Folder": [], "File": []}
         # 取得第一層依照年與季分類的folders
         data_folder_list, else_file_list = get_folder_contents(
@@ -39,21 +39,20 @@ class Data:
         data_path_df = pd.DataFrame(data_path_dict)
         self.data_path_df = data_path_df
 
-    def get_name_from_path(self, path):
-        name = os.path.basename(path)
-        return name
-
     def process_data(self):
+        '''
+        讀取csv檔、處理資料(設定column name、新增df_name欄位)
+        '''
         data_df_list = []
         folder_num = len(self.data_path_df)
         # 處理每個folder
         for i in range(folder_num):
-            folder_name = self.get_name_from_path(self.data_path_df.Folder[i])
+            folder_name = get_name_from_path(self.data_path_df.Folder[i])
             # 處理每個file與file的dataframe
             file_num = len(self.data_path_df.File[i])
             for j in range(file_num):
                 data_file_path = self.data_path_df.File[i][j]
-                file_name = self.get_name_from_path(data_file_path)
+                file_name = get_name_from_path(data_file_path)
                 # 讀取csv檔成dataframe格式
                 try:
                     data_df = pd.read_csv(data_file_path, low_memory=False)
@@ -65,15 +64,18 @@ class Data:
                         print(e)
                     continue
                 # 將csv第二列(在data_df中為第0列)的英文設為col的標頭，並刪除這個row
-                data_df = data_df.rename(
-                    columns=data_df.iloc[0]).drop(data_df.index[0])
+                data_df = data_df.rename(columns=data_df.iloc[0])
+                data_df = data_df.drop(data_df.index[0])
                 # 增加df_name欄位，並補上內容
                 data_df['df_name'] = folder_name + '_' + \
                     file_name[0] + '_' + file_name[-5]
                 data_df_list.append(data_df)
         self.data_df_list = data_df_list
 
-    def concatenate_data_df(self):
+    def __concatenate_data_df(self):
+        '''
+        將data_df全部合併
+        '''
         # 合併dataframe，並將index reset 避免重複的index問題
         concat_df = pd.concat(self.data_df_list, axis=0).reset_index(drop=True)
         # 去除沒有column name的column、因為空資料即而產生的column
@@ -87,8 +89,11 @@ class Data:
     def get_data_df_list(self):
         return self.data_df_list
 
-    def get_df_all(self):
-        df_all = self.concatenate_data_df()
+    def generate_df_all(self):
+        '''
+        產生df_all並回傳
+        '''
+        df_all = self.__concatenate_data_df()
         return df_all
 
 
@@ -111,6 +116,14 @@ def get_folder_contents(folder_path):
     else:
         print("Folder does not exist")
     return folder_list, file_list
+
+
+def get_name_from_path(path):
+    '''
+    取得檔案名稱
+    '''
+    name = os.path.basename(path)
+    return name
 
 
 def convert_total_floor_to_number(floor):
@@ -150,6 +163,14 @@ def filter_df(df):
     return filt_df
 
 
+def generate_filter_csv(df):
+    '''
+    取得篩選結果，並儲存
+    '''
+    result_df = filter_df(df)
+    save_df_to_csv(result_df, '../result/', 'filter.csv')
+
+
 def count_df(df):
     '''
     計算df指定項目資訊
@@ -187,6 +208,14 @@ def count_df(df):
     return count_df
 
 
+def generate_count_csv(df):
+    '''
+    取得計算結果，並儲存
+    '''
+    result_df = count_df(df)
+    save_df_to_csv(result_df, '../result/', 'count.csv')
+
+
 def save_df_to_csv(df, folder_path, file_name):
     '''
     將df儲存成csv檔
@@ -198,19 +227,17 @@ def save_df_to_csv(df, folder_path, file_name):
 
 
 if __name__ == '__main__':
+    # 題2
     data = Data('../real_estate_data/')
     print('data processing...')
     data.process_data()
-
+    # 題3
     print('generating df_all...')
-    df_all = data.get_df_all()
-
+    df_all = data.generate_df_all()
+    # 題4
     print('filtering df_all...')
-    filt_df = filter_df(df_all)
-    save_df_to_csv(filt_df, '../result/', 'filter.csv')
+    generate_filter_csv(df_all)
 
     print('counting df_all...')
-    df_all = data.get_df_all()
-    count_df = count_df(df_all)
-    save_df_to_csv(count_df, '../result/', 'count.csv')
+    generate_count_csv(df_all)
     print('finish')
