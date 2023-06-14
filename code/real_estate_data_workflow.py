@@ -190,9 +190,8 @@ def count_df(df):
     # 篩選包含車位的資料，只要包含車位就算
     berth_filt = (df['transaction sign'].str.contains('車位', na=False))
     berth_df = df.loc[berth_filt]
-    # 計算總數與總價平均
+    # 計算車位數與車位總價平均
     total_berth_num = len(berth_df)
-
     # 篩選有紀錄價格的車位
     priced_berth_filt = (df['the berth total price NTD (number)'] > 0)
     priced_berth_df = df.loc[priced_berth_filt]
